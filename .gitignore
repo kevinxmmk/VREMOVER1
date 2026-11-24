@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+
+# Server
+server/work/
+server/models/

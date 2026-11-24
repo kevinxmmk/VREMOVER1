@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b12">
+<title>VREMOVER</title>
+<style>
+  :root{
+    --bg:#0b0b12; --card:#14141f; --card2:#1a1a2a; --line:#27273b;
+    --txt:#f2f2fa; --mut:#8a8aa3; --v:#7c5cff; --p:#ec4899;
+    --grad:linear-gradient(90deg,#7c5cff,#ec4899);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{min-height:100vh;
+    background:radial-gradient(900px 420px at 50% -80px,rgba(88,44,190,.45),transparent 70%),var(--bg);
+    padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+  .wrap{max-width:560px;margin:0 auto}
+  header{text-align:center;padding:18px 0 8px}
+  h1{margin:0;font-size:34px;letter-spacing:1px;font-weight:800;
+    background:linear-gradient(90deg,#c4b5fd,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{margin:6px 0 0;font-size:11px;letter-spacing:3px;color:var(--mut);text-transform:uppercase}
+  .wave{display:flex;justify-content:center;align-items:center;gap:3px;height:46px;margin:14px 0 6px}
+  .wave i{width:4px;border-radius:3px;background:var(--grad);height:8px;opacity:.9}
+  .wave.on i{animation:bounce 1s ease-in-out infinite}
+  @keyframes bounce{0%,100%{height:8px}50%{height:40px}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:14px}
+  label.drop{display:block;border:2px dashed #3a3a58;border-radius:14px;padding:26px 12px;text-align:center;
+    color:var(--mut);cursor:pointer;background:var(--card2)}
+  label.drop b{display:block;color:var(--txt);font-size:15px;margin-top:6px;word-break:break-all}
+  label.drop .ic{font-size:30px}
+  input[type=file]{display:none}
+  .row{display:flex;gap:10px;margin-top:12px}
+  .row>div{flex:1;min-width:0}
+  small{display:block;color:var(--mut);margin:0 0 5px 2px;font-size:12px}
+  select{width:100%;background:var(--card2);color:var(--txt);border:1px solid var(--line);
+    border-radius:12px;padding:12px;font-size:14px;appearance:none}
+  button.go{width:100%;margin-top:16px;border:0;border-radius:14px;padding:15px;font-size:16px;font-weight:700;
+    color:#fff;background:var(--grad);box-shadow:0 8px 24px rgba(124,92,255,.35)}
+  button.go:disabled{opacity:.4;box-shadow:none}
+  #status{display:none;text-align:center;color:var(--mut);font-size:14px}
+  #status .bar{height:6px;border-radius:6px;background:var(--card2);margin-top:12px;overflow:hidden}
+  #status .bar i{display:block;height:100%;width:0;background:var(--grad);transition:width .3s}
+  #status .bar.ind i{width:40%;animation:slide 1.2s ease-in-out infinite}
+  @keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+  .err{color:#fb7185}
+  .stem{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
+  .stem h3{margin:0 0 8px;font-size:14px;color:#c4b5fd}
+  .stem audio{width:100%;height:38px}
+  .stem a{display:block;text-align:center;margin-top:8px;padding:10px;border-radius:10px;text-decoration:none;
+    color:var(--txt);border:1px solid #3a3a58;font-size:14px;font-weight:600}
+  footer{text-align:center;margin-top:22px;color:var(--mut);font-size:12px}
+  footer a{color:#a78bfa;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>VREMOVER</h1>
+    <p class="tag">AI Vocal &amp; Instrument Remover</p>
+    <div class="wave" id="wave"></div>
+  </header>
+
+  <div class="card">
+    <label class="drop" for="file">
+      <div class="ic">🎵</div>
+      <b id="fname">Ketuk untuk pilih lagu</b>
+      <span style="font-size:12px">mp3 · wav · flac · m4a</span>
+    </label>
+    <input id="file" type="file" accept="audio/*,video/*">
+
+    <div class="row">
+      <div><small>Model</small><select id="model"></select></div>
+      <div style="flex:.45"><small>Format</small>
+        <select id="format"><option>MP3</option><option>WAV</option><option>FLAC</option></select></div>
+    </div>
+    <button class="go" id="go" disabled>Mulai Proses</button>
+  </div>
+
+  <div class="card" id="status"><div id="stext"></div><div class="bar" id="sbar"><i></i></div></div>
+  <div id="results"></div>
+
+  <footer>
+    <span id="srv"></span>
+    <span id="chg" style="display:none"> · <a href="#" id="chgLink">Ganti server</a></span>
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let file = null, timer = null, t0 = 0;
+
+// dekor waveform
+const wave = $('#wave');
+for (let i = 0; i < 34; i++) {
+  const b = document.createElement('i');
+  const env = Math.sin(Math.PI * i / 33);
+  b.style.height = (6 + env * 30 * (0.35 + Math.random() * 0.65)) + 'px';
+  b.style.animationDelay = (i * 0.045) + 's';
+  b.style.background = `linear-gradient(180deg,hsl(${255 + i * 2.4},90%,66%),hsl(${300 + i * 1.2},85%,60%))`;
+  wave.appendChild(b);
+}
+
+$('#srv').textContent = location.host;
+if (window.Android && Android.changeServer) {
+  $('#chg').style.display = 'inline';
+  $('#chgLink').onclick = e => { e.preventDefault(); Android.changeServer(); };
+}
+
+fetch('/api/models').then(r => r.json()).then(m => {
+  $('#model').innerHTML = '';
+  m.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; $('#model').appendChild(o); });
+});
+
+$('#file').onchange = e => {
+  file = e.target.files[0] || null;
+  $('#fname').textContent = file ? file.name : 'Ketuk untuk pilih lagu';
+  $('#go').disabled = !file;
+};
+
+function setStatus(text, mode, isErr) {
+  $('#status').style.display = 'block';
+  const t = $('#stext'); t.textContent = text; t.className = isErr ? 'err' : '';
+  const bar = $('#sbar');
+  bar.className = 'bar' + (mode === 'ind' ? ' ind' : '');
+  if (typeof mode === 'number') bar.firstElementChild.style.width = mode + '%';
+  wave.classList.toggle('on', mode === 'ind');
+}
+
+$('#go').onclick = () => {
+  if (!file) return;
+  $('#results').innerHTML = '';
+  $('#go').disabled = true;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('model', $('#model').value);
+  fd.append('format', $('#format').value);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/separate');
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) setStatus('Upload lagu… ' + Math.round(e.loaded / e.total * 100) + '%', e.loaded / e.total * 100);
+  };
+  xhr.onerror = () => { setStatus('Gagal konek ke server.', 0, true); $('#go').disabled = false; };
+  xhr.onload = () => {
+    let r = {}; try { r = JSON.parse(xhr.responseText); } catch (_) {}
+    if (xhr.status !== 200 || !r.id) { setStatus(r.error || 'Upload gagal.', 0, true); $('#go').disabled = false; return; }
+    t0 = Date.now();
+    poll(r.id);
+  };
+  setStatus('Upload lagu… 0%', 0);
+  xhr.send(fd);
+};
+
+function poll(id) {
+  clearTimeout(timer);
+  fetch('/api/jobs/' + id).then(r => r.json()).then(j => {
+    const sec = Math.round((Date.now() - t0) / 1000);
+    if (j.status === 'queued') setStatus('Antri… posisi ' + (j.position || 1), 'ind');
+    else if (j.status === 'running') setStatus('Lagi misahin vokal & instrumen… ' + sec + ' dtk', 'ind');
+    else if (j.status === 'done') { done(j, sec); return; }
+    else if (j.status === 'error' || j.error) { setStatus('Gagal: ' + (j.error || 'unknown'), 0, true); $('#go').disabled = false; return; }
+    timer = setTimeout(() => poll(id), 2000);
+  }).catch(() => { timer = setTimeout(() => poll(id), 3000); });
+}
+
+function done(j, sec) {
+  setStatus('Selesai dalam ' + sec + ' detik ✅', 100);
+  wave.classList.remove('on');
+  $('#go').disabled = false;
+  const box = $('#results'); box.innerHTML = '';
+  j.files.forEach(f => {
+    const d = document.createElement('div'); d.className = 'stem';
+    const h = document.createElement('h3'); h.textContent = f.label;
+    const a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.src = f.url;
+    const l = document.createElement('a'); l.href = f.url + '?dl=1'; l.textContent = '⬇ Download'; l.setAttribute('download', f.name);
+    d.append(h, a, l); box.appendChild(d);
+  });
+}
+</script>
+</body>
+</html>

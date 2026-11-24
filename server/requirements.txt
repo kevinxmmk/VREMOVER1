@@ -1,0 +1,6 @@
+flask>=3.0
+# Pakai salah satu:
+#   CPU saja : audio-separator[cpu]
+#   GPU NVIDIA: audio-separator[gpu]
+audio-separator[cpu]
+# FFmpeg juga harus terinstall di sistem (apt install ffmpeg / winget install ffmpeg)
